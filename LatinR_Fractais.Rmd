@@ -1,0 +1,359 @@
+---
+title: "LatinR  Fractals"
+output: html_document
+date: "2024-08-21"
+---
+
+
+# Fractais
+
+```{r}
+
+#knitr::opts_chunk$set(echo = TRUE)
+file2=getwd()
+file2
+file=paste(file2,"Figuras/",sep = "/")
+file
+
+```
+
+
+
+# Coch curve
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("ggplot2")
+
+```
+
+## Elementos Exploratórios 
+
+
+Baseado nas discussões mostradas em https://rpubs.com/mstefan-rpubs/fractals 
+
+
+```{r}
+
+emptyCanvas <- function(xlim, ylim, bg="gray20") {
+  par(mar=rep(1,4), bg=bg)
+  plot(1, 
+       type="n", 
+       bty="n",
+       xlab="", ylab="", 
+       xaxt="n", yaxt="n",
+       xlim=xlim, ylim=ylim)
+}
+```
+
+
+```{r}
+
+# function to draw a single line
+drawLine <- function(line, col="white", lwd=1) {
+  segments(x0=line[1], 
+           y0=line[2], 
+           x1=line[3], 
+           y1=line[4], 
+           col=col,
+           lwd=lwd)
+}
+
+# wrapper around "drawLine" to draw entire objects
+drawObject <- function(object, col="white", lwd=1) {
+  invisible(apply(object, 1, drawLine, col=col, lwd=lwd))
+}
+
+```
+
+
+```{r}
+
+# example
+line1 = c(0,0,1,1)
+line2 = c(-3,4,-2,-4)
+line3 = c(1,-3,4,3)
+mat = matrix(c(line1,line2,line3), byrow=T, nrow=3)
+
+```
+
+```{r}
+
+# function to add a new line to an existing one
+newLine <- function(line, angle, reduce=1) {
+  
+  x0 <- line[1]
+  y0 <- line[2]
+  x1 <- line[3]
+  y1 <- line[4]
+  
+  dx <- unname(x1-x0)                      # change in x direction
+  dy <- unname(y1-y0)                      # change in y direction
+  l <- sqrt(dx^2 + dy^2)                   # length of the line
+  
+  theta <- atan(dy/dx) * 180 / pi          # angle between line and origin
+  rad <- (angle+theta) * pi / 180          # (theta + new angle) in radians
+  
+  coeff <- sign(theta)*sign(dy)            # coefficient of direction
+  if(coeff == 0) coeff <- -1
+  
+  x2 <- x0 + coeff*l*cos(rad)*reduce + dx  # new x location
+  y2 <- y0 + coeff*l*sin(rad)*reduce + dy  # new y location
+  return(c(x1,y1,x2,y2))
+  
+}
+
+```
+
+
+```{r}
+
+iterate= function(object, ifun, ...) {
+  linesList <- vector("list",0)
+  for(i in 1:nrow(object)) {
+    old_line = matrix(object[i,], nrow=1)
+    new_line =ifun(old_line, ...)
+    linesList[[length(linesList)+1]] = new_line
+  }
+  new_object <- do.call(rbind, linesList)
+  return(new_object)
+}
+
+
+```
+
+
+
+```{r}
+# iterator function: koch curve
+koch <- function(line0) {
+  
+  # new triangle (starting at right)
+  line1 <- newLine(line0, angle=180, reduce=1/3)
+  line2 <- newLine(line1, angle=-60, reduce=1)
+  line3 <- newLine(line2, angle=120, reduce=1)
+  line4 <- newLine(line3, angle=-60, reduce=1)
+  
+  # reorder lines (to start at left)
+  line1 <- line1[c(3,4,1,2)]
+  line2 <- line2[c(3,4,1,2)]
+  line3 <- line3[c(3,4,1,2)]
+  line4 <- line4[c(3,4,1,2)]
+  
+  # store in matrix and return
+  mat <- matrix(c(line4,line3,line2,line1), byrow=T, ncol=4)
+  return(mat)
+  
+}
+
+# example: Koch curve (after six iterations)
+fractal <- matrix(c(0,0,1,1e-9), nrow=1)
+for(i in 1:6) fractal <- iterate(fractal, ifun=koch)
+p=emptyCanvas(xlim=c(10,20), ylim=c(0,3))
+p=drawObject(fractal)
+p
+
+```
+
+
+```{r}
+
+df=data.frame(fractal)
+xt=c(df$X1,df$X3)
+yt=c(df$X2,df$X4)
+
+dt=tibble::tibble(xt,yt)
+dim(dt)
+names(dt)=c("X1","X2")
+p=ggplot()+coord_fixed()+    theme_void()
+#p=p+ geom_point(data=dt1, aes(x=xt1, y=yt1), color='black',size=.015)
+p=p+ geom_point(data=dt, aes(x=X1, y=X2), color='red',size=.0015)
+p
+
+ggsave("Fractal_09.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+```
+
+
+```{r}
+# Instalar e carregar a biblioteca ggplot2
+library(ggplot2)
+
+
+# Adicionar a coluna de cores ao data.frame
+#dt$color= rep(colors()[40:80],length.out = dim(dt)[1])
+dt$color= rep(c("red","blue","green"),length.out = dim(dt)[1])
+
+# Criar o gráfico
+#p <- ggplot(dt, aes(x = X1, y = X2)) +
+#  geom_point(aes(color = color), size = .3) +  # Tamanho dos pontos e cores
+#  scale_color_identity() +  # Usar as cores definidas no data.frame
+#  theme_minimal() +  # Usar um tema minimalista
+#  labs(title = "Gráfico de Dispersão com Cores Manuais",
+#       x = "X1",
+#       y = "X2")  # Rótulos do gráfico
+#p=p+ geom_point(data=dt1, aes(x=xt1, y=yt1), color='black',size=.015)
+p=p+ geom_point(data=dt, aes(x=X1, y=X2,color=color),size=1.5)+
+  theme(legend.position ="none")
+p
+ggsave("Fractal_09_1.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+
+```
+
+
+### Transformações rígidas no plano
+
+
+```{r}
+
+xt=c(dt$X1)#c(dt$X1,dt2$X1)
+yt=c(dt$X2)#c(dt$X2,dt2$X2)
+rotacao=c(pi/2,pi, 3*pi/2)
+
+k=3#fig12
+k=7
+k=11#fig12
+k=5
+rotacao=pi/k*(1:(2*k))
+n=length(xt)
+
+for(i in 1:length(rotacao)){
+  xt=c(xt,xt[1:n]*cos(rotacao[i])-yt[1:n]*sin(rotacao[i]))
+  yt=c(yt,xt[1:n]*sin(rotacao[i])+yt[1:n]*cos(rotacao[i]))}
+
+contracao =.1
+xt2=xt*contracao
+yt2=yt*contracao
+dt2=tibble::tibble(xt2,yt2)
+
+size=0.025
+p = ggplot()+   coord_fixed()+theme_void()
+p = p+geom_point(data=dt2, aes(x=xt2, y=yt2), color='black',size=size)
+p
+
+if (k==3){
+  ggsave("Fractal_9_2.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==5){
+    ggsave("Fractal_12.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==7){
+    ggsave("Fractal_13.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==11){
+    ggsave("Fractal_14.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")}
+
+
+```
+
+
+
+```{r}
+
+xt=c(dt$X1)#c(dt$X1,dt2$X1)
+yt=c(dt$X2)#c(dt$X2,dt2$X2)
+rotacao=c(pi/2,pi, 3*pi/2)
+k=15
+#k=75
+#k=100
+#k=101
+k=3
+#k=109
+rotacao=c(0.0,pi/k*(1:(2*k)))
+n=length(xt)
+
+p = ggplot()+ coord_fixed()+theme_void()
+
+if (k==15){
+    cores=rep(c("red","green","blue"),length.out=length(rotacao))
+    }else if(k==75){
+      #cores=sample(colors()[240:302],size=length(rotacao),replace=T)
+      cores=rep(c("red","green","blue"),length.out=length(rotacao))
+    }else if(k==100){
+      cores=cores=sample(c("red","green","blue"),size=length(rotacao),replace=T)#rep(colors()[652:655],length.out=length(rotacao))
+    }else if(k==101){cores=terrain.colors(length(rotacao))
+    }else if(k==3){cores=rep(c("red","green","blue"),length.out=length(rotacao))
+    }else if(k==109){
+      cores=sample(colors()[652:656],size=length(rotacao),replace=T)}#rep(colors()[652:655],length.out=length(rotacao))
+
+for(i in 1:length(rotacao)){
+  xt2=c(xt[1:n]*cos(rotacao[i])-yt[1:n]*sin(rotacao[i]))
+  yt2=c(xt[1:n]*sin(rotacao[i])+yt[1:n]*cos(rotacao[i]))
+  dt2=tibble::tibble(xt2,yt2)
+  size=0.15
+  p = p+geom_point(data=dt2, aes(x=xt2, y=yt2),color=cores[i],size=size)
+  p
+  }
+p
+#ggsave("Fractal_15.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+
+if (k==15){
+  ggsave("Fractal_16_0.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==75){
+    ggsave("Fractal_16_1.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==100){
+    ggsave("Fractal_16_2.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==101){
+    ggsave("Fractal_16_3.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  }else if (k==3){
+    ggsave("Fractal_16.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+    }else if (k==109){
+    ggsave("Fractal_15.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")}
+
+```
+
+```{r}
+
+#p= ggplot()+ coord_fixed()+ theme_void()
+
+xt=c(dt$X1)#c(dt$X1,dt2$X1)
+yt=c(dt$X2)#c(dt$X2,dt2$X2)
+rotacao=c(pi/2,pi, 3*pi/2)
+k=3
+k=5
+k=15
+#k=17
+#k=11
+rotacao=c(0.0,pi/k*(1:(2*k)))
+n=length(xt)
+
+for(i in 1:length(rotacao)){
+  xt=c(xt,xt[1:n]*cos(rotacao[i])-yt[1:n]*sin(rotacao[i]))
+  yt=c(yt,xt[1:n]*sin(rotacao[i])+yt[1:n]*cos(rotacao[i]))}
+
+p= ggplot()+ coord_fixed()+ theme_void()
+
+
+if (k==5){
+  set.seed(1000)
+  contracao=runif(k,.5,1.0)#c(-.75,-.85,-.95)#seq(0,1,.5)
+  cores=rep(c("red","green","blue"),length.out=length(contracao))
+    
+    }else if(k==15){
+      contracao=c(.5, .75,.89, .95)#runif(5,.25,1.)
+      cores=rep(c("red","green","blue"),length.out=length(contracao))
+    }else if(k==17){
+      contracao=runif(10,.5,1.0)#c(-.75,-.85,-.95)#seq(0,1,.5)
+      cores=cores=sample(c("red","green","blue"),size=length(contracao),replace=T)#rep(colors()[652:655],length.out=length(rotacao))
+    }else if(k==11){
+      contracao=c(.5, .75,.89, .95)#runif(5,.25,1.)
+      cores=terrain.colors(length(contracao))
+    }else if(k==3){cores=rep(c("red","green","blue"),length.out=length(contracao))}
+
+#cores=heat.colors(length(contracao))#fig16
+for(i in 1:length(contracao)){
+  xt2=c(xt*contracao[i])
+  yt2=c(yt*contracao[i])
+  dt2=tibble::tibble(xt2,yt2)
+  if(k==11){
+    p=p+geom_point(data=dt2, aes(x=xt2, y=yt2),color=cores[i],size=0.015)+theme(panel.background = element_rect(fill = "darkblue"))
+    p}else{p=p+geom_point(data=dt2, aes(x=xt2, y=yt2),color=cores[i],size=0.015)
+    p}
+}
+p
+
+
+if (k==5){
+  ggsave("Fractal_17_0.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  } else if (k==15){
+    ggsave("Fractal_17_1.png", p,dpi = 100, path=file,width = 8,height = 6,units ="in")
+  }
+```
+
