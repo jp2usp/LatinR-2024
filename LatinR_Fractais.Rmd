@@ -357,3 +357,95 @@ if (k==5){
   }
 ```
 
+# Colorindo o fractal usando centralização e deslocamento ( contribuições da Luciane a partir dos apontamentos do João Paulo nas linhas anteriores)
+
+## Funções criadas para facilitar o processo
+
+Optei por criar a função na mesma lógica das curvas parametrizadas, ou seja, definindo os pontos iniciais do processo e sempre retornando um dataframe com duas colunas x e y.
+
+## Função koch_curve
+
+```{r}
+# koch_curve cria o fractal a partir dos pares de pontos (x1,y1) e (x2,y2) e certa profundidade de iterações.
+
+koch_curve <- function(x1, y1, x2, y2, depth) {
+  if (depth == 0) {
+    return(data.frame(x = c(x1, x2), y = c(y1, y2)))
+  } else {
+    # Calcular os pontos intermediários
+    deltaX <- (x2 - x1) / 3
+    deltaY <- (y2 - y1) / 3
+    
+    # Pontos que dividem o segmento em três partes iguais
+    xA <- x1 + deltaX
+    yA <- y1 + deltaY
+    
+    xB <- x1 + 2 * deltaX
+    yB <- y1 + 2 * deltaY
+    
+    # Ponto C para o triângulo equilátero
+    xC <- (xA + xB) / 2 - sqrt(3) * (yB - yA) / 2
+    yC <- (yA + yB) / 2 + sqrt(3) * (xB - xA) / 2
+    
+    # Recursão para cada segmento
+    points1 <- koch_curve(x1, y1, xA, yA, depth - 1)
+    points2 <- koch_curve(xA, yA, xC, yC, depth - 1)
+    points3 <- koch_curve(xC, yC, xB, yB, depth - 1)
+    points4 <- koch_curve(xB, yB, x2, y2, depth - 1)
+    
+    return(rbind(points1, points2[-1,], points3[-1,], points4[-1,]))
+  }
+}
+```
+### Exemplo 
+```{r}
+depth <- 8
+initial_curve <- koch_curve(0, 0, 1, 0, depth)
+
+# Plotar a curva de Koch usando ggplot2
+ggplot(initial_curve, aes(x = x, y = y)) +
+  geom_path(color = "blue") +
+  coord_fixed()+
+  theme_void()
+```
+## Função koch_triangle
+
+Depende da função anterior koch_curve(). Considera o triângulo equilátero inicial formado pelos pontos A=(0,0), B=(0.5,  sqrt(3) / 2) e C= (1,0).
+
+```{r}
+# Função para iniciar com um triângulo equilátero e aplicar a curva de Koch
+koch_triangle <- function(depth) {
+  # Coordenadas dos vértices do triângulo equilátero
+  x1 <- 0
+  y1 <- 0
+  
+  x2 <- 0.5
+  y2 <- sqrt(3) / 2
+  
+  x3 <- 1
+  y3 <- 0
+  
+  # Aplicar a curva de Koch em cada lado do triângulo
+  curve1 <- koch_curve(x1, y1, x2, y2, depth)
+  curve2 <- koch_curve(x2, y2, x3, y3, depth)
+  curve3 <- koch_curve(x3, y3, x1, y1, depth)
+  
+  # Combinar os pontos gerados
+  return(rbind(curve1, curve2[-1,], curve3[-1,]))
+}
+```
+
+### Exemplo
+
+```{r}
+depth <- 4
+koch_triangle_points <- koch_triangle(depth)
+
+# Plotar o triângulo de Koch usando ggplot2
+ggplot(koch_triangle_points, aes(x = x, y = y)) +
+  geom_path(color = "blue") +
+  coord_fixed()+
+  theme_void()
+```
+
+
